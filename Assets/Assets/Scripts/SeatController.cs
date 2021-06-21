@@ -8,11 +8,12 @@ public class SeatController : MonoBehaviour
     [SerializeField] private Transform firePoint;
     [SerializeField] private GameObject lambert;
     [SerializeField] private GameObject decoy;
-
+    
     private GameManager gameManager;
     private CameraManager cameraManager;
     private PredictionManager predictionManager;
     
+    // Touch Controller variables
     private Vector3 newSeatPos;
     private Vector3 initialPos;
     private Vector3 initialRot;
@@ -27,6 +28,13 @@ public class SeatController : MonoBehaviour
     private float pullTimer;
     private float pullTimerTotal;
     private float seatAxisZ;
+    
+    // Mouse Controller Variables
+    private Vector3 initialClickPosition;
+    private Vector3 mousePosition;
+    private Vector3 mouseDeltaPosition;
+
+    private Camera cam;
 
     private void Start()
     {
@@ -40,9 +48,13 @@ public class SeatController : MonoBehaviour
 
     private void Update()
     {
-        if (!seatEmpty)
+        if (!seatEmpty && !gameManager.mouseControllerActive)
         {
             TouchController();
+        }
+        else if (!seatEmpty && gameManager.mouseControllerActive)
+        {
+            MouseController();
         }
     }
     
@@ -85,7 +97,7 @@ public class SeatController : MonoBehaviour
                 ShootLambert();
                 gameManager.ActivatePrediction(false);
                 seatPulledBack = false;
-                //When chamber is Empty Chamber
+                //When chamber is Empty
                 decoy.SetActive(false);
                 seatEmpty = true;
 
@@ -134,8 +146,6 @@ public class SeatController : MonoBehaviour
             Destroy(other.gameObject);
         }
     }
-    
-    #endregion
 
     private void PullSeatBackOverTime()
     {
@@ -152,5 +162,59 @@ public class SeatController : MonoBehaviour
     {
         pullTimerTotal = time;
         pullTimer = time;
+    }
+    #endregion
+
+    void MouseController()
+    {
+        if (Input.GetMouseButton(0))
+        {
+            // Mouse movement Began
+            {
+                if (!seatPulledBack) 
+                {
+                    initialClickPosition = (Input.mousePosition);
+                    StartPulling(0.25f);
+                    seatPulledBack = true;
+                    gameManager.ActivatePrediction(true);
+
+                    Debug.Log("Mouse movement started!");
+                }
+            }
+            
+            // Mouse Movement Continues
+            mousePosition = (Input.mousePosition);
+            mouseDeltaPosition = initialClickPosition - mousePosition;
+            Predict();
+            
+            
+            PullSeatBackOverTime();
+            newSeatPos = new Vector3(-mouseDeltaPosition.x * gameManager.speedMouse, 0.8f + -mouseDeltaPosition.y * gameManager.speedMouse, transform.localPosition.z);
+            newSeatPos = new Vector3(Mathf.Clamp(newSeatPos.x, -0.25f, 0.25f),
+                Mathf.Clamp(newSeatPos.y, 0.8f - 0.25f, 0.8f + 0.25f), newSeatPos.z);
+
+            transform.localPosition = newSeatPos;
+            RotateTowards();
+            
+            Debug.Log("Movement is ongoing");
+        }
+        
+        // Mouse Movement Ends
+        if (Input.GetMouseButtonUp(0))
+        {
+            //Finish shooting
+            ShootLambert();
+            gameManager.ActivatePrediction(false);
+            seatPulledBack = false;
+            //When chamber is Empty
+            decoy.SetActive(false);
+            seatEmpty = true;
+
+
+            transform.localPosition = initialPos;
+            transform.localEulerAngles = initialRot;
+
+            Debug.Log("Mouse movement ended!");
+        }
     }
 }
